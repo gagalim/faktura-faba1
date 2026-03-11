@@ -156,8 +156,8 @@
             <div id="login-error" class="bg-red-50 border border-red-200 text-red-600 p-2 rounded mb-3 text-xs hidden">Грешни креденцијали!</div>
             <form onsubmit="return handleLogin(event)">
                 <div class="space-y-3">
-                    <input type="text" id="login-username" class="input-field border-gray-300" placeholder="Корисник: faba2026">
-                    <input type="password" id="login-password" class="input-field border-gray-300" placeholder="Лозинка: faba123">
+                    <input type="text" id="login-username" class="input-field border-gray-300" placeholder="Корисник: ">
+                    <input type="password" id="login-password" class="input-field border-gray-300" placeholder="Лозинка: ">
                 </div>
                 <button type="submit" class="btn btn-primary w-full mt-4">Најава</button>
             </form>
@@ -400,7 +400,7 @@
         function saveState() { localStorage.setItem(APP_KEY, JSON.stringify({ settings: state.settings, clients: state.clients, articles: state.articles, archive: state.archive })); }
 
         // AUTH
-        function handleLogin(e) { e.preventDefault(); if (document.getElementById('login-username').value === 'admin' && document.getElementById('login-password').value === 'admin123') { state.loggedIn = true; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('app-container').classList.remove('hidden'); initApp(); } else { document.getElementById('login-error').classList.remove('hidden'); } }
+        function handleLogin(e) { e.preventDefault(); if (document.getElementById('login-username').value === 'faba' && document.getElementById('login-password').value === 'faba2012') { state.loggedIn = true; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('app-container').classList.remove('hidden'); initApp(); } else { document.getElementById('login-error').classList.remove('hidden'); } }
         function handleLogout() { state.loggedIn = false; document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('app-container').classList.add('hidden'); }
 
         // NAV
@@ -570,3 +570,4 @@
 </body>
 
 </html>
+
