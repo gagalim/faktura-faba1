@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Систем за Фактури</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f3f4f6; color: #1f2937; margin: 0; }
+        h1, h2, h3, th, .font-bold { font-family: Arial, sans-serif; font-weight: bold; }
+        
+        :root {
+            --bg: #f3f4f6; --bg-card: #ffffff; --bg-input: #ffffff;
+            --fg: #1f2937; --muted: #6b7280; 
+            --accent: #dc2626; /* NDËRRUAR NGA BLU NË KUQE */
+            --accent-dim: #b91c1c; /* NUANCË MË E ERRËT E KUQE */
+            --border: #e5e7eb; --danger: #991b1b;
+        }
+
+        .bg-pattern { position: fixed; inset: 0; background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); z-index: -2; }
+        
+        .input-field {
+            background: var(--bg-input); border: 1px solid var(--border); color: var(--fg);
+            padding: 0.6rem 0.9rem; border-radius: 6px; width: 100%; transition: all 0.2s;
+            font-family: Arial, sans-serif; font-size: 14px; 
+        }
+        .input-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2); }
+        
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        
+        .btn {
+            padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; border: none; font-family: Arial, sans-serif;
+            display: inline-flex; align-items: center; gap: 0.4rem; font-size: 13px;
+        }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-dim); }
+        .btn-secondary { background: #e5e7eb; color: #1f2937; border: 1px solid var(--border); }
+        .btn-secondary:hover { background: #d1d5db; }
+        .btn-danger { background: #fee2e2; color: var(--danger); border: 1px solid #fecaca; }
+        .btn-success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+        .btn-sm { padding: 0.35rem 0.7rem; font-size: 12px; }
+
+        .nav-tab {
+            padding: 0.6rem 1rem; background: transparent; border: none;
+            color: var(--muted); cursor: pointer; font-weight: 600;
+            font-family: Arial, sans-serif; border-bottom: 2px solid transparent;
+        }
+        .nav-tab:hover { color: var(--fg); background: #f3f4f6; }
+        .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #fff; }
+
+        .datalist-input {
+            position: absolute; background: white; border: 1px solid var(--border);
+            border-radius: 6px; width: 100%; max-height: 150px; overflow-y: auto;
+            z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .datalist-input.show { display: block; }
+        .datalist-option { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; font-size: 12px; }
+        .datalist-option:hover { background: #fee2e2; color: var(--accent); }
+
+        .logo-icon { width: 50px; height: 50px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+        
+        .data-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 800px; }
+        .data-table th { text-align: left; padding: 1rem 1rem; color: #374151; border-bottom: 2px solid #e5e7eb; font-size: 11px; text-transform: uppercase; background: #f9fafb; }
+        .data-table td { padding: 1rem 1rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+        .data-table tbody tr:hover { background: #f9fafb; }
+
+        .pdf-container {
+            background: white !important; color: black !important; 
+            padding: 10mm 12mm;
+            font-family: Arial, sans-serif; font-size: 10pt;
+            width: 210mm;
+            height: 297mm; 
+            box-sizing: border-box; 
+            margin: 0 auto; 
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+
+        .preview-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100%; 
+            overflow: hidden;
+            padding-top: 10px;
+        }
+        
+        .scale-to-fit {
+            transform: scale(0.58); 
+            transform-origin: top center;
+        }
+
+        .signature-box { width: 45%; text-align: center; margin-top: 8px; }
+        .signature-line { border-top: 1px solid black; margin-top: 15px; padding-top: 3px; }
+
+        @media print {
+            /* FORCE COLOR PRINTING */
+            body { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            
+            #login-screen, header, footer, .no-print { display: none !important; }
+            body, #app-container { 
+                all: initial !important; 
+                display: block !important;
+                background: white !important;
+                margin: 0 !important; padding: 0 !important;
+                width: 100% !important; height: auto !important;
+            }
+            main, #tab-invoice, #tab-invoice > div { 
+                display: block !important; overflow: visible !important;
+                width: 100% !important; height: auto !important;
+                padding: 0 !important; margin: 0 !important;
+            }
+            .preview-wrapper { display: block !important; overflow: visible !important; height: auto !important; width: 100% !important; padding: 0 !important; }
+            .scale-to-fit { transform: none !important; width: 100% !important; height: auto !important; }
+            
+            #invoice-preview {
+                width: 100% !important; max-width: 210mm !important;
+                min-height: auto !important; height: auto !important;
+                margin: 0 auto !important; border: none !important;
+                box-shadow: none !important; background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Ensure table headers are black */
+            #invoice-preview table thead tr {
+                background-color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #invoice-preview table thead th {
+                color: white !important;
+                background-color: #000 !important;
+            }
+
+            @page { size: A4 portrait; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <!-- LOGIN -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm text-center">
+            <div class="logo-icon mx-auto">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h1 class="text-xl mb-6 text-gray-800">Најава</h1>
+            <div id="login-error" class="bg-red-50 border border-red-200 text-red-600 p-2 rounded mb-3 text-xs hidden">Грешни креденцијали!</div>
+            <form onsubmit="return handleLogin(event)">
+                <div class="space-y-3">
+                    <input type="text" id="login-username" class="input-field border-gray-300" placeholder="Корисник: admin">
+                    <input type="password" id="login-password" class="input-field border-gray-300" placeholder="Лозинка: admin123">
+                </div>
+                <button type="submit" class="btn btn-primary w-full mt-4">Најава</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="app-container" class="hidden flex flex-col min-h-screen">
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-50 no-print shadow-sm">
+            <div class="w-full px-6 flex items-center justify-between">
+                <div class="flex items-center overflow-x-auto">
+                    <button class="nav-tab active" onclick="switchTab('invoice')" data-tab="invoice">Фактура</button>
+                    <button class="nav-tab" onclick="switchTab('archive')" data-tab="archive">Архива</button>
+                    <button class="nav-tab" onclick="switchTab('clients')" data-tab="clients">Клиенти</button>
+                    <button class="nav-tab" onclick="switchTab('articles')" data-tab="articles">Артикли</button>
+                    <button class="nav-tab" onclick="switchTab('settings')" data-tab="settings">Подесувања</button>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="handleLogout()">Одјава</button>
+            </div>
+        </header>
+
+        <main class="w-full px-4 py-2 flex-grow">
+            
+            <!-- INVOICE TAB -->
+            <div id="tab-invoice" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-2 h-[calc(100vh-80px)]">
+                    
+                    <!-- LEFT: Data Entry -->
+                    <div class="bg-white border border-gray-200 rounded-lg overflow-y-auto p-5 no-print">
+                        
+                        <div class="flex gap-2 mb-4 sticky top-0 bg-white py-2 z-10 border-b border-gray-100 -mt-1 -mx-1 px-1">
+                            <button class="btn btn-success flex-1" onclick="newInvoice()">Нова Фактура</button>
+                            <button class="btn btn-primary flex-1" onclick="saveToArchive()">Зачувај</button>
+                        </div>
+
+                        <!-- Details -->
+                        <div class="card mb-4">
+                            <h2 class="font-bold mb-3 text-gray-800">Детали</h2>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500 mb-1 block">Број</label>
+                                    <input type="text" id="inv-number" class="input-field" value="001/01.2025">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 mb-1 block">Дата</label>
+                                    <input type="date" id="inv-date" class="input-field" onchange="generateInvoiceNumber()">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 mb-1 block">Плаќање</label>
+                                    <input type="date" id="inv-due-date" class="input-field">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Client -->
+                        <div class="card mb-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h2 class="font-bold text-gray-800">Клиент</h2>
+                                <select id="select-client" class="input-field w-auto text-sm" onchange="fillClientData()"><option value="">...</option></select>
+                            </div>
+                            <div class="grid gap-3">
+                                <input type="text" id="inv-client-name" class="input-field" placeholder="Име на клиент">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" id="inv-client-address" class="input-field" placeholder="Адреса">
+                                    <input type="text" id="inv-client-city" class="input-field" placeholder="Град">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" id="inv-client-ebm" class="input-field" placeholder="ЕДБ">
+                                    <input type="text" id="inv-client-vat" class="input-field" placeholder="ДДВ">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" id="inv-client-phone" class="input-field" placeholder="Телефон">
+                                    <input type="email" id="inv-client-email" class="input-field" placeholder="Email">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Items -->
+                        <div class="card mb-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h2 class="font-bold text-gray-800">Артикли</h2>
+                                <button class="btn btn-primary btn-sm" onclick="addInvoiceItem()">+ Додади</button>
+                            </div>
+                            <div class="space-y-3 min-w-0" id="invoice-items-container"></div>
+                            <div id="no-items-msg" class="text-center text-gray-400 py-4 text-sm">Нема артикли. Кликнете '+ Додади'.</div>
+                        </div>
+
+                        <div class="flex gap-3 mt-auto pt-2">
+                            <button class="btn btn-primary flex-1" onclick="generatePDF()">Симни PDF</button>
+                            <button class="btn btn-secondary flex-1" onclick="printInvoice()">Печати</button>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Invoice Preview -->
+                    <div class="preview-wrapper no-print bg-gray-200 rounded-lg">
+                        <div class="scale-to-fit">
+                            <div id="invoice-preview" class="pdf-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARCHIVE TAB -->
+            <div id="tab-archive" class="tab-content hidden">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-gray-200"><h2 class="text-xl font-bold text-gray-800">Архива</h2></div>
+                    <div class="overflow-x-auto w-full">
+                        <table class="data-table"><thead><tr><th>Број</th><th>Дата</th><th>Клиент</th><th>Вкупно</th><th>Статус</th><th>Акции</th></tr></thead><tbody id="archive-list"></tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLIENTS TAB -->
+            <div id="tab-clients" class="tab-content hidden">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-800">Клиенти</h2>
+                        <div class="flex gap-3">
+                             <input type="text" id="search-clients" class="input-field w-64" placeholder="Пребарај..." oninput="renderClients()">
+                             <button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Додади</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto w-full">
+                        <table class="data-table"><thead><tr><th>Име</th><th>Град</th><th>Телефон</th><th>Е-пошта</th><th>ЕДБ</th><th>Акции</th></tr></thead><tbody id="clients-list"></tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ARTICLES TAB -->
+            <div id="tab-articles" class="tab-content hidden">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-800">Артикли</h2>
+                        <div class="flex gap-3">
+                            <input type="text" id="search-articles" class="input-field w-64" placeholder="Пребарај..." oninput="renderArticles()">
+                            <button class="btn btn-primary btn-sm" onclick="openArticleModal()">+ Додади</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto w-full">
+                        <table class="data-table"><thead><tr><th>Код</th><th>Име</th><th>Цена</th><th>Единица</th><th>Акции</th></tr></thead><tbody id="articles-list"></tbody></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTINGS TAB -->
+            <div id="tab-settings" class="tab-content hidden">
+                <div class="max-w-2xl mx-auto card">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-800">Подесувања</h2>
+                    <div class="grid gap-3">
+                        <div>
+                            <label class="text-xs text-gray-500">Лого</label>
+                            <input type="file" id="settings-logo-upload" class="input-field mt-1 text-xs" accept="image/*" onchange="handleLogoUpload(event)">
+                            <div id="logo-preview" class="mt-1"></div>
+                        </div>
+                        <input type="text" id="settings-name" class="input-field text-sm" placeholder="Име">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="settings-address" class="input-field text-sm" placeholder="Адреса">
+                            <input type="text" id="settings-city" class="input-field text-sm" placeholder="Град">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="settings-ebm" class="input-field text-sm" placeholder="ЕДБ">
+                            <input type="text" id="settings-vat" class="input-field text-sm" placeholder="ДДВ">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" id="settings-phone" class="input-field text-sm" placeholder="Телефон">
+                            <input type="email" id="settings-email" class="input-field text-sm" placeholder="Е-пошта">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs text-gray-500">ДДВ (%)</label>
+                                <select id="settings-vat-rate" class="input-field mt-1 text-sm"><option value="18">18%</option><option value="10">10%</option><option value="5">5%</option><option value="0">0%</option></select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-1" onclick="saveSettings()">Зачувај</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+        <footer class="text-center text-xs text-gray-400 mt-auto py-3 no-print">POWERED BY BADESIGN</footer>
+    </div>
+
+    <!-- MODALS -->
+    <div id="client-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-5">
+            <h3 class="font-semibold mb-2 text-gray-800 text-sm" id="client-modal-title">Клиент</h3>
+            <div class="grid gap-1.5">
+                <input type="hidden" id="client-id">
+                <input type="text" id="client-name-input" class="input-field text-sm" placeholder="Име *">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="client-address-input" class="input-field text-sm" placeholder="Адреса">
+                    <input type="text" id="client-city-input" class="input-field text-sm" placeholder="Град">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="client-ebm-input" class="input-field text-sm" placeholder="ЕДБ">
+                    <input type="text" id="client-vat-input" class="input-field text-sm" placeholder="ДДВ">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="client-phone-input" class="input-field text-sm" placeholder="Телефон">
+                    <input type="email" id="client-email-input" class="input-field text-sm" placeholder="Е-пошта">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button class="btn btn-primary flex-1 text-sm" onclick="saveClient()">Зачувај</button>
+                <button class="btn btn-secondary text-sm" onclick="closeClientModal()">Откажи</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="article-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-5">
+            <h3 class="font-semibold mb-2 text-gray-800 text-sm" id="article-modal-title">Артикл</h3>
+            <div class="grid gap-1.5">
+                <input type="hidden" id="article-id">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" id="article-code-input" class="input-field text-sm" placeholder="Код">
+                    <select id="article-unit-input" class="input-field text-sm"><option value="Вр">Врекје</option><option value="м3">м3</option><option value="m">М</option><option value="м2">м2</option><option value="м">м</option><option value="кг">кг</option></select>
+                </div>
+                <input type="text" id="article-name-input" class="input-field text-sm" placeholder="Име *">
+                <input type="number" id="article-price-input" class="input-field text-sm" placeholder="Цена" step="0.01">
+            </div>
+            <div class="flex gap-2 mt-3">
+                <button class="btn btn-primary flex-1 text-sm" onclick="saveArticle()">Зачувај</button>
+                <button class="btn btn-secondary text-sm" onclick="closeArticleModal()">Откажи</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // STATE
+        const APP_KEY = 'invoice_app_v17';
+        let state = {
+            loggedIn: false,
+            settings: { name: 'Компанија', address: 'Адреса', city: 'Скопје', ebm: 'MK', vat: 'MK', phone: '+389', email: 'info@', vatRate: 18, logo: '' },
+            clients: [], articles: [], archive: [],
+            invoice: { number: '', date: '', dueDate: '', items: [] }
+        };
+
+        function loadState() { const s = localStorage.getItem(APP_KEY); if (s) { try { const p = JSON.parse(s); state.settings = p.settings || state.settings; state.clients = p.clients || []; state.articles = p.articles || []; state.archive = p.archive || []; } catch(e){} } }
+        function saveState() { localStorage.setItem(APP_KEY, JSON.stringify({ settings: state.settings, clients: state.clients, articles: state.articles, archive: state.archive })); }
+
+        // AUTH
+        function handleLogin(e) { e.preventDefault(); if (document.getElementById('login-username').value === 'admin' && document.getElementById('login-password').value === 'admin123') { state.loggedIn = true; document.getElementById('login-screen').classList.add('hidden'); document.getElementById('app-container').classList.remove('hidden'); initApp(); } else { document.getElementById('login-error').classList.remove('hidden'); } }
+        function handleLogout() { state.loggedIn = false; document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('app-container').classList.add('hidden'); }
+
+        // NAV
+        function switchTab(n) { document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden')); document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active')); document.getElementById('tab-' + n).classList.remove('hidden'); document.querySelector(`[data-tab="${n}"]`).classList.add('active'); if (n === 'invoice') updateInvoicePreview(); }
+
+        // INIT
+        function initApp() { loadState(); document.getElementById('settings-name').value = state.settings.name; document.getElementById('settings-address').value = state.settings.address; document.getElementById('settings-city').value = state.settings.city; document.getElementById('settings-ebm').value = state.settings.ebm; document.getElementById('settings-vat').value = state.settings.vat; document.getElementById('settings-phone').value = state.settings.phone; document.getElementById('settings-email').value = state.settings.email; document.getElementById('settings-vat-rate').value = state.settings.vatRate; if(state.settings.logo) document.getElementById('logo-preview').innerHTML = `<img src="${state.settings.logo}" class="h-12 rounded">`; renderClients(); renderArticles(); renderArchive(); populateClientDropdown(); newInvoice(); }
+
+        // SETTINGS
+        function saveSettings() { state.settings.name = document.getElementById('settings-name').value; state.settings.address = document.getElementById('settings-address').value; state.settings.city = document.getElementById('settings-city').value; state.settings.ebm = document.getElementById('settings-ebm').value; state.settings.vat = document.getElementById('settings-vat').value; state.settings.phone = document.getElementById('settings-phone').value; state.settings.email = document.getElementById('settings-email').value; state.settings.vatRate = parseInt(document.getElementById('settings-vat-rate').value); saveState(); updateInvoicePreview(); alert('Зачувано!'); }
+        function handleLogoUpload(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(ev) { state.settings.logo = ev.target.result; saveState(); document.getElementById('logo-preview').innerHTML = `<img src="${ev.target.result}" class="h-12 rounded">`; updateInvoicePreview(); }; reader.readAsDataURL(file); }
+
+        // CLIENTS
+        function renderClients() { const q = document.getElementById('search-clients')?.value.toLowerCase() || ''; const f = state.clients.filter(c => c.name.toLowerCase().includes(q) || (c.city || '').toLowerCase().includes(q)); document.getElementById('clients-list').innerHTML = f.map(c => `<tr><td class="font-semibold">${c.name}</td><td>${c.city||'-'}</td><td>${c.phone||'-'}</td><td>${c.email||'-'}</td><td style="font-size:11px">${c.ebm||'-'}</td><td><button class="btn btn-secondary btn-sm" onclick='editClient("${c.id}")'>E</button> <button class="btn btn-danger btn-sm" onclick='deleteClient("${c.id}")'>X</button></td></tr>`).join(''); }
+        function populateClientDropdown() { document.getElementById('select-client').innerHTML = '<option value="">...</option>' + state.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join(''); }
+        function openClientModal(id = null) { document.getElementById('client-modal-title').textContent = id ? 'Едитирај' : 'Додади'; if(id){ const c=state.clients.find(x=>x.id===id); document.getElementById('client-id').value=id; document.getElementById('client-name-input').value=c.name; document.getElementById('client-address-input').value=c.address||''; document.getElementById('client-city-input').value=c.city||''; document.getElementById('client-ebm-input').value=c.ebm||''; document.getElementById('client-vat-input').value=c.vat||''; document.getElementById('client-phone-input').value=c.phone||''; document.getElementById('client-email-input').value=c.email||''; } else { document.getElementById('client-id').value=''; document.querySelectorAll('#client-modal input:not([type="hidden"])').forEach(i=>i.value=''); } document.getElementById('client-modal').classList.remove('hidden'); }
+        function closeClientModal() { document.getElementById('client-modal').classList.add('hidden'); }
+        function saveClient() { const id=document.getElementById('client-id').value; const d={id:id||'cl_'+Date.now(),name:document.getElementById('client-name-input').value,address:document.getElementById('client-address-input').value,city:document.getElementById('client-city-input').value,ebm:document.getElementById('client-ebm-input').value,vat:document.getElementById('client-vat-input').value,phone:document.getElementById('client-phone-input').value,email:document.getElementById('client-email-input').value}; if(id){ const i=state.clients.findIndex(c=>c.id===id); state.clients[i]=d; } else { state.clients.push(d); } saveState(); renderClients(); populateClientDropdown(); closeClientModal(); }
+        window.editClient = (id) => openClientModal(id);
+        window.deleteClient = (id) => { if(confirm('Избриши?')){ state.clients=state.clients.filter(c=>c.id!==id); saveState(); renderClients(); populateClientDropdown(); } };
+        function fillClientData() { const c=state.clients.find(x=>x.id===document.getElementById('select-client').value); if(c){ document.getElementById('inv-client-name').value=c.name; document.getElementById('inv-client-address').value=c.address||''; document.getElementById('inv-client-city').value=c.city||''; document.getElementById('inv-client-ebm').value=c.ebm||''; document.getElementById('inv-client-vat').value=c.vat||''; document.getElementById('inv-client-phone').value=c.phone||''; document.getElementById('inv-client-email').value=c.email||''; updateInvoicePreview(); } }
+
+        // ARTICLES
+        function renderArticles() { const q = document.getElementById('search-articles')?.value.toLowerCase() || ''; const f = state.articles.filter(a => a.name.toLowerCase().includes(q) || (a.code || '').toLowerCase().includes(q)); document.getElementById('articles-list').innerHTML = f.map(a => `<tr><td style="font-size:11px">${a.code||'-'}</td><td class="font-semibold">${a.name}</td><td>${parseFloat(a.price).toFixed(2)}</td><td>${a.unit||'-'}</td><td><button class="btn btn-secondary btn-sm" onclick='editArticle("${a.id}")'>E</button> <button class="btn btn-danger btn-sm" onclick='deleteArticle("${a.id}")'>X</button></td></tr>`).join(''); }
+        function openArticleModal(id = null) { document.getElementById('article-modal-title').textContent = id ? 'Едитирај' : 'Додади'; if(id){ const a=state.articles.find(x=>x.id===id); document.getElementById('article-id').value=id; document.getElementById('article-code-input').value=a.code||''; document.getElementById('article-name-input').value=a.name; document.getElementById('article-price-input').value=a.price; document.getElementById('article-unit-input').value=a.unit||'kom'; } else { document.getElementById('article-id').value=''; document.querySelectorAll('#article-modal input:not([type="hidden"])').forEach(i=>i.value=''); document.getElementById('article-unit-input').value='kom'; } document.getElementById('article-modal').classList.remove('hidden'); }
+        function closeArticleModal() { document.getElementById('article-modal').classList.add('hidden'); }
+        function saveArticle() { const id=document.getElementById('article-id').value; const d={id:id||'art_'+Date.now(),code:document.getElementById('article-code-input').value,name:document.getElementById('article-name-input').value,price:parseFloat(document.getElementById('article-price-input').value)||0,unit:document.getElementById('article-unit-input').value}; if(id){ const i=state.articles.findIndex(a=>a.id===id); state.articles[i]=d; } else { state.articles.push(d); } saveState(); renderArticles(); closeArticleModal(); }
+        window.editArticle = (id) => openArticleModal(id);
+        window.deleteArticle = (id) => { if(confirm('Избриши?')){ state.articles=state.articles.filter(a=>a.id!==id); saveState(); renderArticles(); } };
+
+        // ITEMS
+        let itemCounter = 0;
+        function addInvoiceItem() { const item = { id: 'itm_'+(++itemCounter), name: '', code: '', qty: 1, unit: 'kom', price: 0 }; state.invoice.items.push(item); renderInvoiceItem(item); document.getElementById('no-items-msg').style.display = 'none'; }
+        function renderInvoiceItem(item) { const container = document.getElementById('invoice-items-container'); const div = document.createElement('div'); div.className = 'grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200'; div.id = item.id; const options = state.articles.map(a => `<div class="datalist-option" data-name="${a.name}" data-price="${a.price}" data-unit="${a.unit||'kom'}" data-code="${a.code||''}">${a.name}<span style="color:#6b7280;font-size:11px">${a.price} МКД</span></div>`).join(''); div.innerHTML = `<div class="col-span-5 autocomplete-wrapper relative"><input type="text" class="input-field item-name" placeholder="Артикл..." value="${item.name}" oninput="showSuggestions(this)" onblur="hideSuggestions(this)"><div class="datalist-input">${options}</div></div><input type="number" class="input-field col-span-2 item-qty text-center" value="${item.qty}" min="1" oninput="updateItemRow(this)"><select class="input-field col-span-2 item-unit" onchange="updateItemRow(this)"><option value="Вр" ${item.unit==='Врекје'?'selected':''}>Вр</option><option value="м3" ${item.unit==='м3'?'selected':''}>м3</option><option value="m" ${item.unit==='m'?'selected':''}>М</option></select><input type="number" class="input-field col-span-2 item-price text-right" value="${item.price}" step="0.01" oninput="updateItemRow(this)"><div class="col-span-1"><button class="btn btn-danger btn-sm w-full" onclick="removeInvoiceItem('${item.id}')">X</button></div>`; container.appendChild(div); }
+        function showSuggestions(input) { const filter = input.value.toLowerCase(); const datalist = input.nextElementSibling; const options = datalist.querySelectorAll('.datalist-option'); let hasVisible = false; options.forEach(opt => { const name = opt.getAttribute('data-name').toLowerCase(); if (name.includes(filter) && filter.length > 0) { opt.style.display = 'flex'; hasVisible = true; } else { opt.style.display = 'none'; } }); if (hasVisible) datalist.classList.add('show'); else datalist.classList.remove('show'); updateItemRow(input); }
+        function hideSuggestions(input) { setTimeout(() => input.nextElementSibling.classList.remove('show'), 200); }
+        document.addEventListener('click', function(e) { if (e.target.classList.contains('datalist-option')) { const name = e.target.getAttribute('data-name'); const price = e.target.getAttribute('data-price'); const unit = e.target.getAttribute('data-unit'); const code = e.target.getAttribute('data-code'); const input = e.target.parentElement.previousElementSibling; input.value = name; const row = e.target.closest('.grid'); row.querySelector('.item-price').value = price; row.querySelector('.item-unit').value = unit; row.querySelector('.item-qty').value = 1; const id = row.id; const itemState = state.invoice.items.find(i => i.id === id); if(itemState) itemState.code = code; updateItemRow(input); e.target.parentElement.classList.remove('show'); } });
+        function updateItemRow(input) { const row = input.closest('.grid'); const id = row.id; const qty = parseFloat(row.querySelector('.item-qty').value) || 0; const price = parseFloat(row.querySelector('.item-price').value) || 0; const itemState = state.invoice.items.find(i => i.id === id); if (itemState) { itemState.name = row.querySelector('.item-name').value; itemState.qty = qty; itemState.price = price; itemState.unit = row.querySelector('.item-unit').value; } updateInvoicePreview(); }
+        function removeInvoiceItem(id) { state.invoice.items = state.invoice.items.filter(i => i.id !== id); document.getElementById(id).remove(); if(state.invoice.items.length === 0) document.getElementById('no-items-msg').style.display = 'block'; updateInvoicePreview(); }
+
+        // LOGIC
+        function generateInvoiceNumber() { const dateInput = document.getElementById('inv-date').value; if(!dateInput) return; const d = new Date(dateInput); const month = String(d.getMonth() + 1).padStart(2, '0'); const year = d.getFullYear(); const samePeriodInvoices = state.archive.filter(inv => { const invD = new Date(inv.date); return invD.getMonth() + 1 === parseInt(month) && invD.getFullYear() === year; }); const nextNum = samePeriodInvoices.length + 1; const numStr = String(nextNum).padStart(3, '0'); return `${numStr}/${month}.${year}`; }
+        function newInvoice() { const today = new Date().toISOString().split('T')[0]; document.getElementById('inv-date').value = today; const due = new Date(); due.setDate(due.getDate() + 30); document.getElementById('inv-due-date').value = due.toISOString().split('T')[0]; document.getElementById('inv-number').value = generateInvoiceNumber(); document.getElementById('select-client').value = ''; document.getElementById('inv-client-name').value = ''; document.getElementById('inv-client-address').value = ''; document.getElementById('inv-client-city').value = ''; document.getElementById('inv-client-ebm').value = ''; document.getElementById('inv-client-vat').value = ''; document.getElementById('inv-client-phone').value = ''; document.getElementById('inv-client-email').value = ''; state.invoice.items = []; itemCounter = 0; document.getElementById('invoice-items-container').innerHTML = ''; document.getElementById('no-items-msg').style.display = 'block'; updateInvoicePreview(); }
+        function saveToArchive() { if(state.invoice.items.length === 0) { alert("Додадете артикли!"); return; } const invData = { id: 'inv_' + Date.now(), number: document.getElementById('inv-number').value, date: document.getElementById('inv-date').value, dueDate: document.getElementById('inv-due-date').value, client: { name: document.getElementById('inv-client-name').value, address: document.getElementById('inv-client-address').value, city: document.getElementById('inv-client-city').value, ebm: document.getElementById('inv-client-ebm').value, vat: document.getElementById('inv-client-vat').value, phone: document.getElementById('inv-client-phone').value, email: document.getElementById('inv-client-email').value }, items: JSON.parse(JSON.stringify(state.invoice.items)), paid: false }; state.archive.push(invData); saveState(); alert('Зачувано!'); newInvoice(); renderArchive(); }
+
+        // ARCHIVE
+        function renderArchive() { document.getElementById('archive-list').innerHTML = state.archive.map(inv => { const total = inv.items.reduce((s, i) => s + (i.qty * i.price), 0) * (1 + state.settings.vatRate/100); const statusClass = inv.paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'; const dateF = new Date(inv.date).toLocaleDateString('mk-MK'); return `<tr><td class="font-semibold">${inv.number}</td><td>${dateF}</td><td>${inv.client.name}</td><td class="font-semibold">${total.toFixed(2)}</td><td><span class="px-2 py-1 rounded border text-xs ${statusClass}">${inv.paid ? 'Платено' : 'Неплатено'}</span></td><td><button class="btn btn-secondary btn-sm" onclick="loadFromArchive('${inv.id}')">Отвори</button> <button class="btn ${inv.paid ? 'btn-danger' : 'btn-success'} btn-sm ml-1" onclick="togglePaid('${inv.id}')">${inv.paid ? 'Наплати' : 'Платено'}</button> <button class="btn btn-danger btn-sm ml-1" onclick="deleteFromArchive('${inv.id}')">X</button></td></tr>`; }).join(''); }
+        window.togglePaid = (id) => { const inv = state.archive.find(i => i.id === id); if(inv) { inv.paid = !inv.paid; saveState(); renderArchive(); } };
+        window.deleteFromArchive = (id) => { if(confirm('Избриши?')) { state.archive = state.archive.filter(i => i.id !== id); saveState(); renderArchive(); document.getElementById('inv-number').value = generateInvoiceNumber(); updateInvoicePreview(); } };
+        window.loadFromArchive = (id) => { const inv = state.archive.find(i => i.id === id); if(inv) { document.getElementById('inv-number').value = inv.number; document.getElementById('inv-date').value = inv.date; document.getElementById('inv-due-date').value = inv.dueDate; document.getElementById('inv-client-name').value = inv.client.name; document.getElementById('inv-client-address').value = inv.client.address; document.getElementById('inv-client-city').value = inv.client.city; document.getElementById('inv-client-ebm').value = inv.client.ebm; document.getElementById('inv-client-vat').value = inv.client.vat; document.getElementById('inv-client-phone').value = inv.client.phone; document.getElementById('inv-client-email').value = inv.client.email; state.invoice.items = JSON.parse(JSON.stringify(inv.items)); document.getElementById('invoice-items-container').innerHTML = ''; itemCounter = 0; state.invoice.items.forEach(item => { item.id = 'itm_'+(++itemCounter); renderInvoiceItem(item); }); if(state.invoice.items.length > 0) document.getElementById('no-items-msg').style.display = 'none'; else document.getElementById('no-items-msg').style.display = 'block'; switchTab('invoice'); } };
+
+        // PREVIEW & PDF
+        function formatCurrency(num) { return new Intl.NumberFormat('mk-MK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num); }
+        function formatDate(d) { return d ? new Date(d).toLocaleDateString('mk-MK') : '--'; }
+
+        function updateInvoicePreview() {
+            const invNum = document.getElementById('inv-number').value;
+            const invDate = document.getElementById('inv-date').value;
+            const invDue = document.getElementById('inv-due-date').value;
+            const clientName = document.getElementById('inv-client-name').value;
+            const clientAddress = document.getElementById('inv-client-address').value;
+            const clientCity = document.getElementById('inv-client-city').value;
+            const clientEbm = document.getElementById('inv-client-ebm').value;
+            const clientVat = document.getElementById('inv-client-vat').value;
+            const clientPhone = document.getElementById('inv-client-phone').value;
+            const clientEmail = document.getElementById('inv-client-email').value;
+            const subtotal = state.invoice.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+            const vatRate = state.settings.vatRate;
+            const vat = subtotal * (vatRate / 100);
+            const total = subtotal + vat;
+
+            const doc = `
+                <div style="border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            ${state.settings.logo ? `<img src="${state.settings.logo}" style="height: 50px; object-fit: contain;">` : ''}
+                            <div>
+                                <h1 style="font-size: 13pt; margin:0;">${state.settings.name}</h1>
+                                <p style="font-size: 10pt; margin:2px 0;">${state.settings.address}, ${state.settings.city}</p>
+                                <p style="font-size: 10pt; margin:2px 0;">Тел: ${state.settings.phone} | ${state.settings.email}</p>
+                                <p style="font-size: 9pt; margin:0;">ЕДБ: ${state.settings.ebm} | ДДВ: ${state.settings.vat}</p>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <h1 style="font-size: 14pt; font-weight: bold; margin:0;">ФАКТУРА</h1>
+                            <p style="font-size: 10pt; font-weight: bold; margin:2px 0;">${invNum}</p>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 6px; font-size: 9pt; display: flex; justify-content: space-between;">
+                    <div><strong>Дата:</strong> ${formatDate(invDate)}</div>
+                    <div><strong>Плаќање:</strong> ${formatDate(invDue)}</div>
+                </div>
+                <div style="background: #f9f9f9; padding: 5px; border-radius: 2px; border: 1px solid #eee; margin-bottom: 6px;">
+                    <h3 style="font-size: 8pt; color: #555; text-transform: uppercase; margin:0;">Клиент</h3>
+                    <p style="font-weight: bold; font-size: 11pt; margin:2px 0;">${clientName || '--'}</p>
+                    <p style="font-size: 9pt; margin:1px 0;">${clientAddress || '--'}, ${clientCity || '--'}</p>
+                    <p style="font-size: 9pt; margin:1px 0;">Тел: ${clientPhone || '--'} | ${clientEmail || '--'}</p>
+                    <p style="font-size: 8pt; margin:0;">ЕДБ: ${clientEbm || '--'} | ДДВ: ${clientVat || '--'}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 9pt;">
+                    <thead>
+                        <tr style="background: #000; color: white;">
+                            <th style="padding: 3px; text-align: center; width: 12px;">Бр.</th>
+                            <th style="padding: 3px; text-align: center; width: 25px;">Шифра</th>
+                            <th style="padding: 3px; text-align: left;">Опис</th>
+                            <th style="padding: 3px; text-align: center; width: 25px;">Кол.</th>
+                            <th style="padding: 3px; text-align: center; width: 25px;">Ед.</th>
+                            <th style="padding: 3px; text-align: right; width: 55px;">Цена</th>
+                            <th style="padding: 3px; text-align: right; width: 55px;">Ц. ДДВ</th>
+                            <th style="padding: 3px; text-align: right; width: 55px;">Вкупно</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${state.invoice.items.map((item, idx) => {
+                            const gross = item.price * (1 + vatRate/100);
+                            const total = item.qty * item.price;
+                            return `<tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 2px; text-align: center;">${idx + 1}</td>
+                                <td style="padding: 2px; text-align: center;">${item.code || '-'}</td>
+                                <td style="padding: 2px;">${item.name || '--'}</td>
+                                <td style="padding: 2px; text-align: center;">${item.qty}</td>
+                                <td style="padding: 2px; text-align: center;">${item.unit}</td>
+                                <td style="padding: 2px; text-align: right;">${formatCurrency(item.price)}</td>
+                                <td style="padding: 2px; text-align: right;">${formatCurrency(gross)}</td>
+                                <td style="padding: 2px; text-align: right; font-weight: bold;">${formatCurrency(total)}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                    <div style="width: 150px; font-size: 8pt;">
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee;"><span>Подзбир:</span><span>${formatCurrency(subtotal)}</span></div>
+                        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee;"><span>ДДВ (${vatRate}%):</span><span>${formatCurrency(vat)}</span></div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; background: #f4f4f4;"><span>ВКУПНО:</span><span>${formatCurrency(total)}</span></div>
+                    </div>
+                </div>
+                
+                <!-- SIGNATURES: Labels BELOW lines -->
+                <div style="display: flex; justify-content: space-between; margin-top: 113px; border-top: 1px solid #ccc; padding-top: 10px;">
+                    <div style="width: 45%; text-align: center;">
+                        <!-- Line First -->
+                        <div style="border-top: 1px solid black; margin-top: 40px; padding-top: 2px;"></div>
+                        <!-- Label Below -->
+                        <div style="font-weight: bold; font-size: 8pt; margin-top: 5px;">Предал</div>
+                    </div>
+                    <div style="width: 45%; text-align: center;">
+                        <div style="border-top: 1px solid black; margin-top: 40px; padding-top: 2px;"></div>
+                        <div style="font-weight: bold; font-size: 8pt; margin-top: 5px;">Прими</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('invoice-preview').innerHTML = doc;
+        }
+
+        function generatePDF() { 
+            const element = document.getElementById('invoice-preview'); 
+            const opt = { margin: 0, filename: `Faktura_${document.getElementById('inv-number').value}.pdf`, image: { type: 'jpeg', quality: 0.99 }, html2canvas: { scale: 2, useCORS: true, scrollY: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }; 
+            html2pdf().set(opt).from(element).save(); 
+        }
+
+        function printInvoice() { window.print(); }
+
+        // Init
+        loadState();
+    </script>
+</body>
+</html>
